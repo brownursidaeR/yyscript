@@ -1,0 +1,10 @@
+<RCC>
+  <qresource prefix="/">
+    <file>icons/zhangliang.jpg</file>
+  <!-- </qresource> -->
+
+  <!-- <qresource prefix="images"> -->
+    <file>icons/pay.jpg</file>
+    <!-- <file>images/qun.jpg</file> -->
+  </qresource>
+</RCC>
