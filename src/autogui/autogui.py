@@ -35,44 +35,47 @@ YysScreenshot = screenshot.YysScreenshot
 def ComputeScreenShot(screenShot):
     screenShot = cv2.cvtColor(screenShot, cv2.COLOR_BGR2GRAY)
     # CV_U8
-    kp2, des2 = SIFT.detectAndCompute(screenShot, None)
-    return kp2, des2
+    # kp2, des2 = SIFT.detectAndCompute(screenShot, None)
+    return screenShot #kp2, des2
 
 
-def GetLocation(target, kp2, des2):
+def GetLocation(self,target, screenShot):#kp2, des2):
     """
     获取目标图像在截图中的位置
     :param target:
     :param screenShot:
     :return: 返回坐标(x,y) 与opencv坐标系对应
     """
-    MIN_MATCH_COUNT = 5
-    img1 = target # cv2.cvtColor(target,cv2.COLOR_BGR2GRAY)# 查询图片 ##target   
+    MIN_MATCH_COUNT = 3 #宽容的匹配，可能会导致误点，需要debug
+    img1 = target #cv2.cvtColor(target,cv2.COLOR_BGR2GRAY)# 查询图片 ##target   
     # img2 = cv2.resize(img2, dsize=None, fx=0.5, fy=0.5, interpolation=cv2.INTER_NEAREST)
     # 用SIFT找到关键点和描述符
 
     kp1, des1 = SIFT.detectAndCompute(img1, None)
-    # kp_1, desc_1 = sift.detectAndCompute(original, None)
-    # kp_2, desc_2 = sift.detectAndCompute(image_to_compare, None)
-    # FLANN_INDEX_KDTREE = 0
-    # index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=4)
-    # search_params = dict(checks=50)
+    kp2, des2 = SIFT.detectAndCompute(screenShot, None)
+    # BruteForce匹配存在问题
+    # matcher = cv2.DescriptorMatcher_create("BruteForce")
+    # matches = matcher.knnMatch(des1, des2, k=2)
     
-    # flann = cv2.FlannBasedMatcher(index_params, search_params)
-    matcher = cv2.DescriptorMatcher_create("BruteForce")
-    matches = matcher.knnMatch(des1, des2, k=2)
-    print('new matches apply')
-    # matches = flann.knnMatch(des1, des2, k=2)
+    # 4) Flann特征匹配
+    FLANN_INDEX_KDTREE = 1
+    index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
+    search_params = dict(checks=80)
+
+    flann = cv2.FlannBasedMatcher(index_params, search_params)
+    matches = flann.knnMatch(des1, des2, k=2)
     good = []
     for m, n in matches:
-        if m.distance < 0.7 * n.distance:
+        if m.distance < 0.5 * n.distance:
             good.append(m)
-
-    # result = cv2.drawMatches(screenShot, kp_1, target, kp_2, good, None)
-
-    print(len(good))
+    self.display_msg('匹配锚点{}'.format(len(good)))
+    
+    # 注释这里可以看匹配的锚点
+    # img_out = cv2.drawMatches(target, kp1, screenShot, kp2, good[:15], None, flags=2)
+    # cv2.imshow('image', img_out)#展示图片
+    # cv2.waitKey(0)#等待按键按下
+    # cv2.destroyAllWindows()#清除所有窗口
     if len(good) >= MIN_MATCH_COUNT:
-        print('in?in?in?in?in?in?in?in?in?in?in?in?in?')
         src_pts = np.float32(
             [kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
         dst_pts = np.float32(
@@ -89,10 +92,8 @@ def GetLocation(target, kp2, des2):
             midPos = (midPosArr[0][0], midPosArr[0][1])
             return midPos
         else:
-            print('这里return了11111111111111111111')
             return None
     else:
-        print('这里return了2222222222222222')
         return None
 
 
@@ -318,7 +319,7 @@ class Autogui(QThread):
                     self.display_msg('请确认截图{}存在'.format(callback.key))
                     continue
                 # GetLocation(obj, kp2, des2)
-                loc = GetLocation(callback.image, im_yys[0], im_yys[1])
+                loc = GetLocation(self,callback.image, im_yys)# im_yys[0], im_yys[1])
                 if loc is None:
                     # print('loc is None')
                     continue
@@ -428,19 +429,20 @@ class Autogui(QThread):
             im = window.get_screenshot()
             # im.show()
             # 为了优化速度，把计算屏幕截图的特征提取出来，避免重复运算
-            kp2, des2 = ComputeScreenShot(im)
+            # kp2, des2 = ComputeScreenShot(im)
+            screenShot = ComputeScreenShot(im)
+
             # im.save('test2.png')
-            return kp2, des2
+            return screenShot
 
         except Exception as error:
             self.display_msg('截图失败：' + str(error))
             window = Yys_windows_GUI(None)
             window.get_window_handler()
             im = window.get_screenshot()
-            kp2, des2 = ComputeScreenShot(im)
-            print('卡这里3')
-            # im.save('test3.png')
-            return kp2, des2
+            # kp2, des2 = ComputeScreenShot(im)
+            screenShot = ComputeScreenShot(im)
+            return screenShot # kp2, des2
 
     def screenshot_inc(self, x=0, y=0, w=0, h=0):
         '''默认截取yys相对位置，成功返回截图，失败返回None'''
@@ -453,7 +455,7 @@ class Autogui(QThread):
         # print('看看其他的im_yys',im_yys)
         '''检查图片是否存在, (Image, Image) -> loc or None'''
         try:
-            loc = GetLocation(check_im, im_yys[0], im_yys[1])
+            loc = GetLocation(self,check_im,im_yys )#im_yys[0], im_yys[1])
             print(loc)
             return loc
         except Exception as error:
@@ -464,7 +466,7 @@ class Autogui(QThread):
     def locate_im_exact(self, check_im, im_yys):
         '''通过坐标来获取截图并查看图片是否存在'''
         try:
-            loc = GetLocation(check_im, im_yys[0], im_yys[1])
+            loc = GetLocation(self,check_im,im_yys) #im_yys[0], im_yys[1])
             return loc
         except Exception as error:
             self.display_msg('截图比对失败：' + str(error))

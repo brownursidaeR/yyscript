@@ -331,6 +331,7 @@ class Chapter(Autogui):
     def fox_drag(self, loc):
         im_yys = self.screenshot_exact()
         print('loc tmp 进去')
+        print(self.get_image('chapter_award_box'))
         loc_tmp = self.locate_im(self.get_image('chapter_award_box'),im_yys)
         print('loc tmp 出来')
         if loc_tmp:
